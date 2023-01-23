@@ -10,12 +10,11 @@ import {BaseScript} from "./BaseScript.s.sol";
 contract DeployBN254EncryptionOracle is BaseScript {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address relayer = vm.envAddress("NODE_1_ADDRESS");
 
         vm.startBroadcast(deployerPrivateKey);
 
         OracleFactory factory = OracleFactory(getOracleFactoryAddress());
-        factory.deployReencryption_BN254_G1_HGAMAL(getDistributedKey(), relayer);
+        factory.deployReencryption_BN254_G1_HGAMAL(getDistributedKey());
         vm.stopBroadcast();
     }
 

@@ -9,10 +9,10 @@ import {BN254EncryptionOracle as Oracle} from "../src/BN254EncryptionOracle.sol"
 contract DeployDOnlyFans is BaseScript {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployerAddress = vm.addr(deployerPrivateKey);
+        // address deployerAddress = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
-        new Creator(Oracle(getOracleInstanceAddress()), deployerAddress, 2, 7);
+        new dOnlyFans(Oracle(getOracleInstanceAddress()));
         vm.stopBroadcast();
     }
 }

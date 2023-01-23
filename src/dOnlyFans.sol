@@ -30,6 +30,80 @@ struct Post {
     string uri;
 }
 
+/**
+ * @notice this is the main contracts that keeps track of all the creator profiles and
+ * creates a new Creator smart contract for each.
+ */
+contract dOnlyFans {
+    /// @notice The Encryption Oracle Instance
+    Oracle public oracle;
+    mapping(address => address) public creatorsContract;
+
+    event NewCreatorProfileCreated(
+        address indexed creatorAddress,
+        address indexed creatorContractAddress
+    );
+
+    error dOnlyFans__CreatorAlreadyExists();
+
+    constructor(Oracle _oracle) {
+        oracle = _oracle;
+    }
+
+    function createProfile(uint256 price, uint256 period) public {
+        // if ((creatorsContract[msg.sender]) != address(0)) {
+        //     // the creator profile already exists
+        //     revert CreatorAlreadyExists();
+        // }
+        Creator creator = new Creator(oracle, msg.sender, price, period);
+        creatorsContract[msg.sender] = address(creator);
+        emit NewCreatorProfileCreated(msg.sender, address(creator));
+    }
+
+    function getCreatorContractAddress(
+        address creatorAddress
+    ) public view returns (address) {
+        return creatorsContract[creatorAddress];
+    }
+
+    function subscribe(address creatorAddress) external payable {
+        address contractAddress = creatorsContract[creatorAddress];
+        Creator creator = Creator(contractAddress);
+        creator.subscribe{value: msg.value}();
+    }
+
+    function CreatePost(
+        Ciphertext calldata cipher,
+        string calldata name,
+        string calldata description,
+        string calldata uri
+    ) external {
+        address contractAddress = creatorsContract[msg.sender];
+        Creator(contractAddress).CreatePost(cipher, name, description, uri);
+    }
+
+    function requestPost(
+        address creatorAddress,
+        uint256 cipherId,
+        G1Point calldata subscriberPublicKey
+    ) external {
+        Creator(creatorsContract[creatorAddress]).requestPost(
+            cipherId,
+            subscriberPublicKey
+        );
+    }
+
+    function unsubscribe(address creatorAddress) external {
+        Creator(creatorsContract[creatorAddress]).unsubscribe(msg.sender);
+    }
+
+    function getSubscribers(
+        address creatorAddress
+    ) public view returns (address[] memory) {
+        return Creator(creatorsContract[creatorAddress]).getSubscribers();
+    }
+}
+
 contract Creator is IEncryptionClient, PullPayment {
     /// @notice The Encryption Oracle Instance
     Oracle public oracle;
@@ -53,17 +127,18 @@ contract Creator is IEncryptionClient, PullPayment {
 
     mapping(address => User) private users;
 
+    event NewSubscriber(address indexed creator, address indexed subscriber);
     event PostDecryption(uint256 indexed requestId, Ciphertext ciphertext);
     event NewPost(
-        address indexed seller,
+        address indexed subscriber,
         uint256 indexed cipherId,
         string name,
         string description,
         string uri
     );
     event NewPostRequest(
-        address indexed buyer,
-        address indexed seller,
+        address indexed subscriber,
+        address indexed creator,
         uint256 requestId,
         uint256 cipherId
     );
@@ -77,7 +152,16 @@ contract Creator is IEncryptionClient, PullPayment {
 
     modifier onlyOwner() {
         // require(msg.sender == owner);
-        if (msg.sender != CCaddress) revert Creator__NotOwner();
+        if (msg.sender != CCaddress && tx.origin != CCaddress) {
+            revert Creator__NotOwner();
+        }
+        _;
+    }
+
+    modifier onlySubscriber() {
+        if (!isSubscriber(msg.sender) && !isSubscriber(tx.origin)) {
+            revert Creator__NotSubscriber();
+        }
         _;
     }
 
@@ -105,10 +189,14 @@ contract Creator is IEncryptionClient, PullPayment {
         string calldata name,
         string calldata description,
         string calldata uri
-    ) external returns (uint256) {
-        uint256 cipherId = oracle.submitCiphertext(cipher, msg.sender);
-        posts[cipherId] = Post(msg.sender, uri);
-        emit NewPost(msg.sender, cipherId, name, description, uri);
+    ) external onlyOwner returns (uint256) {
+        uint256 cipherId = oracle.submitCiphertext(
+            cipher,
+            bytes(uri),
+            CCaddress
+        );
+        posts[cipherId] = Post(CCaddress, uri);
+        emit NewPost(CCaddress, cipherId, name, description, uri);
         return cipherId;
     }
 
@@ -117,22 +205,23 @@ contract Creator is IEncryptionClient, PullPayment {
     function subscribe() external payable {
         // Creator storage creator = creators[creatorAddress];
         // if (!creator.isCreator) revert CreatorDoesNotExist();
+        address subscriber = tx.origin;
         if (msg.value < price) revert InsufficientFunds();
         if (msg.value % price != 0) revert InsufficientFunds(); // can only subscribe for full periods
-        subscribers.push(msg.sender);
+        subscribers.push(subscriber);
         _asyncTransfer(CCaddress, msg.value);
 
         if (price <= 0) {
-            users[msg.sender] = User(
-                msg.sender,
+            users[subscriber] = User(
+                subscriber,
                 true,
                 block.timestamp,
                 block.timestamp + subscriptionPeriod * 1 days
             );
         } else {
             // @dev currently doing monthly subscription, will make it configurable later
-            users[msg.sender] = User(
-                msg.sender,
+            users[subscriber] = User(
+                subscriber,
                 true,
                 block.timestamp,
                 block.timestamp +
@@ -159,7 +248,7 @@ contract Creator is IEncryptionClient, PullPayment {
     function requestPost(
         uint256 cipherId,
         G1Point calldata subscriberPublicKey
-    ) external returns (uint256) {
+    ) external onlySubscriber returns (uint256) {
         Post memory post = posts[cipherId];
         if (post.seller == address(0)) {
             revert CreatorDoesNotExist();
@@ -167,7 +256,7 @@ contract Creator is IEncryptionClient, PullPayment {
         if (post.seller != CCaddress) {
             revert CreatorDoesNotExist();
         }
-        if (!isSubscriber(msg.sender)) {
+        if (!isSubscriber(msg.sender) && !isSubscriber(tx.origin)) {
             revert Creator__NotSubscriber();
         }
         uint256 requestId = oracle.requestReencryption(
@@ -212,9 +301,9 @@ contract Creator is IEncryptionClient, PullPayment {
         revert Creator__NotSubscriber();
     }
 
-    function unsubscribe() public {
+    function unsubscribe(address subscriber) public onlySubscriber {
         // to do: get refund if unsuscribe before the end of the period paid for
-        removeSubscriber(msg.sender);
+        removeSubscriber(subscriber);
     }
 
     function blockUser(address user) public onlyOwner {

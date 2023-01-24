@@ -37,11 +37,25 @@ contract dOnlyFans {
     /// @notice The Encryption Oracle Instance
     Oracle public oracle;
     mapping(address => address) public creatorsContract;
-    mapping(address => User) public users;
 
     event NewCreatorProfileCreated(
         address indexed creatorAddress,
         address indexed creatorContractAddress
+    );
+
+    event NewSubscriber(address indexed creator, address indexed subscriber);
+    event NewPostRequest(
+        address indexed subscriber,
+        address indexed creator,
+        uint256 requestId,
+        uint256 cipherId
+    );
+    event NewPost(
+        address indexed subscriber,
+        uint256 indexed cipherId,
+        string name,
+        string description,
+        string uri
     );
 
     error dOnlyFans__CreatorAlreadyExists();
@@ -70,17 +84,7 @@ contract dOnlyFans {
         address contractAddress = creatorsContract[creatorAddress];
         Creator creator = Creator(contractAddress);
         creator.subscribe{value: msg.value}();
-        //if (!users[msg.sender].getIsInitialized()) {
-        User newUser = new User();
-        //newUser.followings.push(creatorAddress);
-        //newUser.followings[0] = creatorAddress;
-        newUser.addFollowing(creatorAddress);
-        users[msg.sender] = newUser;
-        newUser.initialize();
-        // } else {
-        users[msg.sender].addFollowing(creatorAddress);
-
-        // }
+        emit NewSubscriber(creatorAddress, msg.sender);
     }
 
     function CreatePost(
@@ -90,7 +94,13 @@ contract dOnlyFans {
         string calldata uri
     ) external {
         address contractAddress = creatorsContract[msg.sender];
-        Creator(contractAddress).CreatePost(cipher, name, description, uri);
+        uint256 cipherId = Creator(contractAddress).CreatePost(
+            cipher,
+            name,
+            description,
+            uri
+        );
+        emit NewPost(msg.sender, cipherId, name, description, uri);
     }
 
     function requestPost(
@@ -98,10 +108,9 @@ contract dOnlyFans {
         uint256 cipherId,
         G1Point calldata subscriberPublicKey
     ) external {
-        Creator(creatorsContract[creatorAddress]).requestPost(
-            cipherId,
-            subscriberPublicKey
-        );
+        uint256 requestId = Creator(creatorsContract[creatorAddress])
+            .requestPost(cipherId, subscriberPublicKey);
+        emit NewPostRequest(msg.sender, creatorAddress, requestId, cipherId);
     }
 
     function unsubscribe(address creatorAddress) external {
@@ -118,37 +127,6 @@ contract dOnlyFans {
         address creatorAddress
     ) public view returns (address[] memory) {
         return Creator(creatorsContract[creatorAddress]).getSubscribers();
-    }
-}
-
-contract User {
-    address userAddress;
-    address[] followings;
-    bool isInitialized;
-
-    constructor() {
-        userAddress = tx.origin;
-        followings = new address[](0);
-    }
-
-    function initialize() public {
-        isInitialized = true;
-    }
-
-    function getIsInitialized() public returns (bool) {
-        return isInitialized;
-    }
-
-    function getUserAddress() public returns (address) {
-        return userAddress;
-    }
-
-    function getFollowingList() public returns (address[] memory) {
-        return followings;
-    }
-
-    function addFollowing(address newFollow) public {
-        followings.push(newFollow);
     }
 }
 
@@ -175,21 +153,7 @@ contract Creator is IEncryptionClient, PullPayment {
 
     mapping(address => Subscriber) private subscribersMap;
 
-    event NewSubscriber(address indexed creator, address indexed subscriber);
     event PostDecryption(uint256 indexed requestId, Ciphertext ciphertext);
-    event NewPost(
-        address indexed subscriber,
-        uint256 indexed cipherId,
-        string name,
-        string description,
-        string uri
-    );
-    event NewPostRequest(
-        address indexed subscriber,
-        address indexed creator,
-        uint256 requestId,
-        uint256 cipherId
-    );
 
     modifier onlyOracle() {
         if (msg.sender != address(oracle)) {
@@ -244,7 +208,7 @@ contract Creator is IEncryptionClient, PullPayment {
             CCaddress
         );
         posts[cipherId] = Post(CCaddress, uri);
-        emit NewPost(CCaddress, cipherId, name, description, uri);
+
         return cipherId;
     }
 
@@ -311,7 +275,7 @@ contract Creator is IEncryptionClient, PullPayment {
             cipherId,
             subscriberPublicKey
         );
-        emit NewPostRequest(msg.sender, post.seller, requestId, cipherId);
+
         return requestId;
     }
 

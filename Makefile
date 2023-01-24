@@ -1,6 +1,6 @@
 # include .env file and export its env vars
 # (-include to ignore error if it does not exist)
--include .env
+include .env
 
 # deps
 install:; forge install
@@ -64,5 +64,6 @@ request_reencryption:; cast send 0xCafac3dD18aC6c6e92c921884f9E4176737C052c \
 						1 "(0,0)" \
 						--private-key ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 
 
+
 # Depoloy DOnlyfans
-testnet_deployDonlyFans:; forge script script/DeployDOnlyFans.s.sol:DeployDOnlyFans --rpc-url https://goerli-rollup.arbitrum.io/rpc --broadcast -vvvv --skip-simulation
+testnet_deployDonlyFans:; forge script script/DeployDOnlyFans.s.sol:DeployDOnlyFans --rpc-url https://goerli-rollup.arbitrum.io/rpc --broadcast -vvvv --skip-simulation --slow

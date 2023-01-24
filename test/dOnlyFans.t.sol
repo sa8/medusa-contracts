@@ -27,11 +27,14 @@ contract dOnlyFansTest is Test {
         address indexed creatorContractAddress
     );
 
-    function testCreateProfile() public {
+    function testCreateProfileEvent() public {
         // create new profile
         // check that a new event is emitted with the correct address (we do not check the contract address)
-        // vm.expectEmit(false, false, false, false);
-        // emit NewCreatorProfileCreated(address(0), address(1));
+        vm.expectEmit(true, false, false, false);
+        emit NewCreatorProfileCreated(address(445), address(1));
+        vm.prank(address(445));
+        dOnlyFansfactory.createProfile(1, 45);
+
         // check that the creator was added to the mapping of creators
     }
 
@@ -41,11 +44,14 @@ contract dOnlyFansTest is Test {
         assertEq(subscribers[0], bob);
     }
 
-    function testFollowings() public {
-        address[] memory follow = dOnlyFansfactory
-            .users(bob)
-            .getFollowingList();
-        assertEq(follow[0], alice);
-        console.logBool(dOnlyFansfactory.users(bob).getIsInitialized());
+    event NewSubscriber(address indexed creator, address indexed subscriber);
+
+    function testNewSubscriverEvent() public {
+        address charlie = address(4);
+        vm.expectEmit(true, false, false, false);
+        emit NewSubscriber(alice, charlie);
+        vm.deal(charlie, 1 ether);
+        vm.prank(charlie, charlie);
+        dOnlyFansfactory.subscribe{value: 10 gwei}(alice);
     }
 }

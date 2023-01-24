@@ -33,7 +33,7 @@ struct Post {
  * @notice this is the main contracts that keeps track of all the creator profiles and
  * creates a new Creator smart contract for each.
  */
-contract dOnlyFans {
+contract dOnlyFans is IEncryptionClient {
     /// @notice The Encryption Oracle Instance
     Oracle public oracle;
     mapping(address => address) public creatorsContract;
@@ -57,6 +57,14 @@ contract dOnlyFans {
         string description,
         string uri
     );
+    event PostDecryption(uint256 indexed requestId, Ciphertext ciphertext);
+
+    modifier onlyOracle() {
+        if (msg.sender != address(oracle)) {
+            revert CallbackNotAuthorized();
+        }
+        _;
+    }
 
     error dOnlyFans__CreatorAlreadyExists();
 
@@ -128,9 +136,17 @@ contract dOnlyFans {
     ) public view returns (address[] memory) {
         return Creator(creatorsContract[creatorAddress]).getSubscribers();
     }
+
+    /// @inheritdoc IEncryptionClient
+    function oracleResult(
+        uint256 requestId,
+        Ciphertext calldata cipher
+    ) external onlyOracle {
+        emit PostDecryption(requestId, cipher);
+    }
 }
 
-contract Creator is IEncryptionClient, PullPayment {
+contract Creator is PullPayment {
     /// @notice The Encryption Oracle Instance
     Oracle public oracle;
 
@@ -152,15 +168,6 @@ contract Creator is IEncryptionClient, PullPayment {
     }
 
     mapping(address => Subscriber) private subscribersMap;
-
-    event PostDecryption(uint256 indexed requestId, Ciphertext ciphertext);
-
-    modifier onlyOracle() {
-        if (msg.sender != address(oracle)) {
-            revert CallbackNotAuthorized();
-        }
-        _;
-    }
 
     modifier onlyOwner() {
         // require(msg.sender == owner);
@@ -277,14 +284,6 @@ contract Creator is IEncryptionClient, PullPayment {
         );
 
         return requestId;
-    }
-
-    /// @inheritdoc IEncryptionClient
-    function oracleResult(
-        uint256 requestId,
-        Ciphertext calldata cipher
-    ) external onlyOracle {
-        emit PostDecryption(requestId, cipher);
     }
 
     /// @notice Convenience function to get the public key of the oracle

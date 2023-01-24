@@ -7,8 +7,8 @@ import {Bn128} from "../src/Bn128.sol";
 
 contract dOnlyFansTest is Test {
     dOnlyFans dOnlyFansfactory;
-    address alice = address(0);
-    address bob = address(1);
+    address alice = address(1);
+    address bob = address(2);
 
     function setUp() public {
         Oracle oracle = new Oracle(Bn128.g1Zero());
@@ -18,7 +18,8 @@ contract dOnlyFansTest is Test {
         dOnlyFansfactory.createProfile(1, 45);
         vm.deal(bob, 1 ether);
         vm.prank(bob, bob);
-        dOnlyFansfactory.subscribe{value: 10 gwei}(address(0));
+        // console.logBool(dOnlyFansfactory.users(bob).isInitialized);
+        dOnlyFansfactory.subscribe{value: 10 gwei}(alice);
     }
 
     event NewCreatorProfileCreated(
@@ -38,5 +39,13 @@ contract dOnlyFansTest is Test {
         address[] memory subscribers = dOnlyFansfactory.getSubscribers(alice);
         console.logAddress(subscribers[0]);
         assertEq(subscribers[0], bob);
+    }
+
+    function testFollowings() public {
+        address[] memory follow = dOnlyFansfactory
+            .users(bob)
+            .getFollowingList();
+        assertEq(follow[0], alice);
+        console.logBool(dOnlyFansfactory.users(bob).getIsInitialized());
     }
 }

@@ -5,7 +5,6 @@ import {PullPayment} from "@openzeppelin/contracts/security/PullPayment.sol";
 import {BN254EncryptionOracle as Oracle} from "./BN254EncryptionOracle.sol";
 import {IEncryptionClient, Ciphertext} from "./EncryptionOracle.sol";
 import {G1Point} from "./Bn128.sol";
-import {PullPayment} from "@openzeppelin/contracts/security/PullPayment.sol";
 
 /**
  * @title dOnlyFans Basic Smart Contract
@@ -38,6 +37,7 @@ contract dOnlyFans {
     /// @notice The Encryption Oracle Instance
     Oracle public oracle;
     mapping(address => address) public creatorsContract;
+    mapping(address => User) public users;
 
     event NewCreatorProfileCreated(
         address indexed creatorAddress,
@@ -70,6 +70,17 @@ contract dOnlyFans {
         address contractAddress = creatorsContract[creatorAddress];
         Creator creator = Creator(contractAddress);
         creator.subscribe{value: msg.value}();
+        //if (!users[msg.sender].getIsInitialized()) {
+        User newUser = new User();
+        //newUser.followings.push(creatorAddress);
+        //newUser.followings[0] = creatorAddress;
+        newUser.addFollowing(creatorAddress);
+        users[msg.sender] = newUser;
+        newUser.initialize();
+        // } else {
+        users[msg.sender].addFollowing(creatorAddress);
+
+        // }
     }
 
     function CreatePost(
@@ -95,12 +106,49 @@ contract dOnlyFans {
 
     function unsubscribe(address creatorAddress) external {
         Creator(creatorsContract[creatorAddress]).unsubscribe(msg.sender);
+        // for (uint i; i < users[msg.sender].followings.length; i++) {
+        //     if (creatorAddress == users[msg.sender].followings[i]) {
+        //         delete users[msg.sender].followings[i];
+        //         return;
+        //     }
+        // }
     }
 
     function getSubscribers(
         address creatorAddress
     ) public view returns (address[] memory) {
         return Creator(creatorsContract[creatorAddress]).getSubscribers();
+    }
+}
+
+contract User {
+    address userAddress;
+    address[] followings;
+    bool isInitialized;
+
+    constructor() {
+        userAddress = tx.origin;
+        followings = new address[](0);
+    }
+
+    function initialize() public {
+        isInitialized = true;
+    }
+
+    function getIsInitialized() public returns (bool) {
+        return isInitialized;
+    }
+
+    function getUserAddress() public returns (address) {
+        return userAddress;
+    }
+
+    function getFollowingList() public returns (address[] memory) {
+        return followings;
+    }
+
+    function addFollowing(address newFollow) public {
+        followings.push(newFollow);
     }
 }
 
@@ -118,14 +166,14 @@ contract Creator is IEncryptionClient, PullPayment {
     bool private isCreator;
     bool public isVerified;
 
-    struct User {
-        address UserAddress;
+    struct Subscriber {
+        address subscriberAddress;
         bool isActive;
         uint256 subscriptionStart;
         uint256 subscriptionEnd;
     }
 
-    mapping(address => User) private users;
+    mapping(address => Subscriber) private subscribersMap;
 
     event NewSubscriber(address indexed creator, address indexed subscriber);
     event PostDecryption(uint256 indexed requestId, Ciphertext ciphertext);
@@ -212,7 +260,7 @@ contract Creator is IEncryptionClient, PullPayment {
         _asyncTransfer(CCaddress, msg.value);
 
         if (price <= 0) {
-            users[subscriber] = User(
+            subscribersMap[subscriber] = Subscriber(
                 subscriber,
                 true,
                 block.timestamp,
@@ -220,7 +268,7 @@ contract Creator is IEncryptionClient, PullPayment {
             );
         } else {
             // @dev currently doing monthly subscription, will make it configurable later
-            users[subscriber] = User(
+            subscribersMap[subscriber] = Subscriber(
                 subscriber,
                 true,
                 block.timestamp,
@@ -234,7 +282,7 @@ contract Creator is IEncryptionClient, PullPayment {
 
     /// @notice check if user's subscription is still valid
     function isSubscriber(address userAddress) public view returns (bool) {
-        User memory user = users[userAddress];
+        Subscriber memory user = subscribersMap[userAddress];
         if (block.timestamp > user.subscriptionEnd) {
             user.isActive = false;
             return false;

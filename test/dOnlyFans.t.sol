@@ -3,7 +3,8 @@ pragma solidity ^0.8.17;
 import "forge-std/Test.sol";
 import "../src/dOnlyFans.sol";
 import {BN254EncryptionOracle as Oracle} from "../src/BN254EncryptionOracle.sol";
-import {Bn128} from "../src/Bn128.sol";
+//import {Bn128} from "../src/Bn128.sol";
+import {G1Point, Bn128, DleqProof} from "../src/Bn128.sol";
 
 contract dOnlyFansTest is Test {
     dOnlyFans dOnlyFansfactory;
@@ -53,5 +54,22 @@ contract dOnlyFansTest is Test {
         vm.deal(charlie, 1 ether);
         vm.prank(charlie, charlie);
         dOnlyFansfactory.subscribe{value: 10 gwei}(alice);
+    }
+
+    function dummyCiphertext() private pure returns (Ciphertext memory) {
+        return
+            Ciphertext(
+                G1Point(12345, 12345),
+                98765,
+                G1Point(1, 2),
+                DleqProof(1, 2)
+            );
+    }
+
+    function testCreatePost() public {
+        // Ciphertext memory cipher = dummyCiphertext();
+        // //console.logString(cipher);
+        // vm.prank(alice, alice);
+        //dOnlyFansfactory.CreatePost(cipher, "name", "description", "uri");
     }
 }

@@ -25,14 +25,16 @@ contract dOnlyFansTest is Test {
 
     event NewCreatorProfileCreated(
         address indexed creatorAddress,
-        address indexed creatorContractAddress
+        address indexed creatorContractAddress,
+        uint256 price,
+        uint256 period
     );
 
     function testCreateProfileEvent() public {
         // create new profile
         // check that a new event is emitted with the correct address (we do not check the contract address)
-        vm.expectEmit(true, false, false, false);
-        emit NewCreatorProfileCreated(address(445), address(1));
+        vm.expectEmit(true, false, false, true);
+        emit NewCreatorProfileCreated(address(445), address(1), 1, 45);
         vm.prank(address(445));
         dOnlyFansfactory.createProfile(1, 45);
 
@@ -45,15 +47,19 @@ contract dOnlyFansTest is Test {
         assertEq(subscribers[0], bob);
     }
 
-    event NewSubscriber(address indexed creator, address indexed subscriber);
+    event NewSubscriber(
+        address indexed creator,
+        address indexed subscriber,
+        uint256 price
+    );
 
     function testNewSubscriverEvent() public {
         address charlie = address(4);
-        vm.expectEmit(true, false, false, false);
-        emit NewSubscriber(alice, charlie);
+        vm.expectEmit(true, false, false, true);
+        emit NewSubscriber(alice, charlie, 1);
         vm.deal(charlie, 1 ether);
         vm.prank(charlie, charlie);
-        dOnlyFansfactory.subscribe{value: 10 gwei}(alice);
+        dOnlyFansfactory.subscribe{value: 1 wei}(alice);
     }
 
     function testIsSubscriber() public {
@@ -78,10 +84,25 @@ contract dOnlyFansTest is Test {
             );
     }
 
-    function testCreatePost() public {
-        // Ciphertext memory cipher = dummyCiphertext();
-        // //console.logString(cipher);
-        // vm.prank(alice, alice);
-        //dOnlyFansfactory.CreatePost(cipher, "name", "description", "uri");
-    }
+    // function testCreatePost() public {
+    //     Ciphertext memory cipher = dummyCiphertext();
+    //     //console.logString(cipher);
+    //     vm.prank(alice, alice);
+    //     dOnlyFansfactory.CreatePost(cipher, "name", "description", "uri");
+
+    //     // check mapping posts if post is there
+    //     address sel = dOnlyFansfactory.getPostSeller(2);
+    //     console.logAddress(sel);
+    //     assertEq(sel, alice);
+    // }
+
+    // function testRequestPost() public {
+    //     Ciphertext memory cipher = dummyCiphertext();
+    //     //console.logString(cipher);
+    //     vm.prank(alice, alice);
+    //     dOnlyFansfactory.CreatePost(cipher, "name", "description", "uri");
+    //     vm.prank(bob, bob);
+    //     uint256 rp = dOnlyFansfactory.requestPost(2, G1Point(12345, 12345));
+    //     assertEq(rp, 2);
+    // }
 }

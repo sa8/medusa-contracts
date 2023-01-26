@@ -10,6 +10,7 @@ error CallbackNotAuthorized();
 error ListingDoesNotExist();
 error InsufficientFunds();
 error CreatorDoesNotExist();
+error PostDoesNotExist();
 error NotSubscriber();
 
 struct Post {
@@ -37,10 +38,16 @@ contract dOnlyFans is IEncryptionClient {
 
     event NewCreatorProfileCreated(
         address indexed creatorAddress,
-        address indexed creatorContractAddress
+        address indexed creatorContractAddress,
+        uint256 price,
+        uint256 period
     );
 
-    event NewSubscriber(address indexed creator, address indexed subscriber);
+    event NewSubscriber(
+        address indexed creator,
+        address indexed subscriber,
+        uint256 price
+    );
     event NewPostRequest(
         address indexed subscriber,
         address indexed creator,
@@ -76,7 +83,12 @@ contract dOnlyFans is IEncryptionClient {
         // }
         Creator creator = new Creator(oracle, msg.sender, price, period);
         creatorsContract[msg.sender] = address(creator);
-        emit NewCreatorProfileCreated(msg.sender, address(creator));
+        emit NewCreatorProfileCreated(
+            msg.sender,
+            address(creator),
+            price,
+            period
+        );
     }
 
     function getCreatorContractAddress(
@@ -89,7 +101,7 @@ contract dOnlyFans is IEncryptionClient {
         address contractAddress = creatorsContract[creatorAddress];
         Creator creator = Creator(contractAddress);
         creator.subscribe{value: msg.value}();
-        emit NewSubscriber(creatorAddress, msg.sender);
+        emit NewSubscriber(creatorAddress, msg.sender, msg.value);
     }
 
     function CreatePost(
@@ -111,6 +123,11 @@ contract dOnlyFans is IEncryptionClient {
         return cipherId;
     }
 
+    function getPostSeller(uint256 cipherId) public view returns (address) {
+        Post memory post = posts[cipherId];
+        return post.seller;
+    }
+
     // function requestPost(
     //     address creatorAddress,
     //     uint256 cipherId,
@@ -127,7 +144,7 @@ contract dOnlyFans is IEncryptionClient {
         Post memory post = posts[cipherId];
         address creator = post.seller;
         if (creator == address(0)) {
-            revert CreatorDoesNotExist();
+            revert PostDoesNotExist();
         }
         if (creatorsContract[creator] == address(0)) {
             revert CreatorDoesNotExist();
@@ -136,10 +153,12 @@ contract dOnlyFans is IEncryptionClient {
         if (!Creator(contractAddress).isSubscriber(msg.sender)) {
             revert NotSubscriber();
         }
+        //uint256 requestId = 2;
         uint256 requestId = oracle.requestReencryption(
             cipherId,
             subscriberPublicKey
         );
+        emit NewPostRequest(msg.sender, creator, requestId, cipherId);
 
         return requestId;
     }

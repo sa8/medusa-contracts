@@ -56,6 +56,18 @@ contract dOnlyFansTest is Test {
         dOnlyFansfactory.subscribe{value: 10 gwei}(alice);
     }
 
+    function testIsSubscriber() public {
+        //assertEq(subscribers[0], bob);
+        address ad = dOnlyFansfactory.creatorsContract(alice);
+        bool issub = Creator(dOnlyFansfactory.creatorsContract(alice))
+            .isSubscriber(bob);
+        console.logAddress(ad);
+        assertEq(issub, true);
+        bool isnotsub = Creator(dOnlyFansfactory.creatorsContract(alice))
+            .isSubscriber(address(156456));
+        assertEq(isnotsub, false);
+    }
+
     function dummyCiphertext() private pure returns (Ciphertext memory) {
         return
             Ciphertext(

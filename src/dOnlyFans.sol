@@ -48,7 +48,7 @@ contract dOnlyFans is IEncryptionClient {
         uint256 cipherId
     );
     event NewPost(
-        address indexed subscriber,
+        address indexed creator,
         uint256 indexed cipherId,
         string name,
         string description,
@@ -126,10 +126,10 @@ contract dOnlyFans is IEncryptionClient {
     ) external returns (uint256) {
         Post memory post = posts[cipherId];
         address creator = post.seller;
-        if (post.seller == address(0)) {
+        if (creator == address(0)) {
             revert CreatorDoesNotExist();
         }
-        if (creatorsContract[post.seller] == address(0)) {
+        if (creatorsContract[creator] == address(0)) {
             revert CreatorDoesNotExist();
         }
         address contractAddress = creatorsContract[creator];

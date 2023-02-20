@@ -12,7 +12,7 @@ error InsufficientFunds();
 error CreatorDoesNotExist();
 error PostDoesNotExist();
 error NotSubscriber();
-
+error NotOwnerOfPost();
 struct Post {
     address seller;
     string uri;
@@ -30,7 +30,7 @@ struct Post {
  * @notice this is the main contracts that keeps track of all the creator profiles and
  * creates a new Creator smart contract for each.
  */
-contract dOnlyFans is IEncryptionClient {
+contract dOnlyFans is IEncryptionClient, PullPayment {
     /// @notice The Encryption Oracle Instance
     Oracle public oracle;
     mapping(address => address) public creatorsContract;
@@ -77,10 +77,10 @@ contract dOnlyFans is IEncryptionClient {
     }
 
     function createProfile(uint256 price, uint256 period) public {
-        // if ((creatorsContract[msg.sender]) != address(0)) {
-        //     // the creator profile already exists
-        //     revert CreatorAlreadyExists();
-        // }
+        if ((creatorsContract[msg.sender]) != address(0)) {
+            // the creator profile already exists
+            revert dOnlyFans__CreatorAlreadyExists();
+        }
         Creator creator = new Creator(oracle, msg.sender, price, period);
         creatorsContract[msg.sender] = address(creator);
         emit NewCreatorProfileCreated(
@@ -163,6 +163,17 @@ contract dOnlyFans is IEncryptionClient {
         return requestId;
     }
 
+    function deletePost(uint256 cipherId) external {
+        Post memory post = posts[cipherId];
+        address creator = post.seller;
+        if (creator != msg.sender) {
+            revert NotOwnerOfPost();
+        }
+        // posts[cipherId].seller = address(0);
+        // posts[cipherId].uri = "";
+        posts[cipherId] = Post(address(0), "");
+    }
+
     function unsubscribe(address creatorAddress) external {
         Creator(creatorsContract[creatorAddress]).unsubscribe(msg.sender);
         // for (uint i; i < users[msg.sender].followings.length; i++) {
@@ -186,6 +197,12 @@ contract dOnlyFans is IEncryptionClient {
     ) external onlyOracle {
         emit PostDecryption(requestId, cipher);
     }
+
+    address public mainAddress = 0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61;
+
+    function withdraw() public {
+        withdrawPayments(payable(mainAddress));
+    }
 }
 
 contract Creator is PullPayment {
@@ -200,6 +217,8 @@ contract Creator is PullPayment {
     address[] private subscribers; // list of subscribers
     bool private isCreator;
     bool public isVerified;
+
+    address public mainAddress = 0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61;
 
     struct Subscriber {
         address subscriberAddress;
@@ -239,6 +258,7 @@ contract Creator is PullPayment {
         price = _price;
         subscriptionPeriod = _period;
         isCreator = true;
+        subscribers.push(CCaddress);
     }
 
     /// @notice Create a new post
@@ -269,7 +289,10 @@ contract Creator is PullPayment {
         if (msg.value < price) revert InsufficientFunds();
         if (msg.value % price != 0) revert InsufficientFunds(); // can only subscribe for full periods
         subscribers.push(subscriber);
-        _asyncTransfer(CCaddress, msg.value);
+        uint256 toCreator = (msg.value * 95) / 100;
+        uint256 rest = msg.value - toCreator;
+        _asyncTransfer(CCaddress, toCreator);
+        _asyncTransfer(mainAddress, rest);
 
         if (price <= 0) {
             subscribersMap[subscriber] = Subscriber(
@@ -339,7 +362,7 @@ contract Creator is PullPayment {
     }
 
     function withdrawFunds() public onlyOwner {
-        withdrawPayments(payable(msg.sender));
+        withdrawPayments(payable(CCaddress));
     }
 
     function removeSubscriber(address user) private {
@@ -360,5 +383,9 @@ contract Creator is PullPayment {
 
     function blockUser(address user) public onlyOwner {
         removeSubscriber(user);
+    }
+
+    function changePrice(uint256 newPrice) public onlyOwner {
+        price = newPrice;
     }
 }

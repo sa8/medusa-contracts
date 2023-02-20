@@ -20,7 +20,7 @@ contract dOnlyFansTest is Test {
         vm.deal(bob, 1 ether);
         vm.prank(bob, bob);
         // console.logBool(dOnlyFansfactory.users(bob).isInitialized);
-        dOnlyFansfactory.subscribe{value: 10 gwei}(alice);
+        dOnlyFansfactory.subscribe{value: 100 gwei}(alice);
     }
 
     event NewCreatorProfileCreated(
@@ -43,8 +43,30 @@ contract dOnlyFansTest is Test {
 
     function testSusbscriber() public {
         address[] memory subscribers = dOnlyFansfactory.getSubscribers(alice);
-        console.logAddress(subscribers[0]);
-        assertEq(subscribers[0], bob);
+        console.logAddress(subscribers[1]);
+        // the first subscriber is the creator themselves
+        assertEq(subscribers[1], bob);
+        assertEq(subscribers[0], alice);
+    }
+
+    function testWithdraw() public {
+        address aliceCreatorContract = dOnlyFansfactory
+            .getCreatorContractAddress(alice);
+
+        Creator aliceCreatorProfile;
+        aliceCreatorProfile = Creator(aliceCreatorContract);
+        vm.prank(alice, alice);
+        aliceCreatorProfile.withdrawFunds();
+        assertEq(alice.balance, 95 gwei);
+
+        address mainAddress = 0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61;
+        // address mainAddress = address(
+        //    0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61
+        //);
+        console.log(mainAddress);
+        dOnlyFansfactory.withdraw();
+        console.log(mainAddress.balance);
+        assertEq(mainAddress.balance, 5 gwei);
     }
 
     event NewSubscriber(

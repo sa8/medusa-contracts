@@ -317,6 +317,7 @@ contract Creator is PullPayment {
 
     /// @notice check if user's subscription is still valid
     function isSubscriber(address userAddress) public view returns (bool) {
+        if (userAddress == CCaddress) return true;
         Subscriber memory user = subscribersMap[userAddress];
         if (block.timestamp > user.subscriptionEnd) {
             user.isActive = false;

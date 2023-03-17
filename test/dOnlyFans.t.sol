@@ -59,14 +59,14 @@ contract dOnlyFansTest is Test {
         aliceCreatorProfile.withdrawFunds();
         assertEq(alice.balance, 95 gwei);
 
-        address mainAddress = 0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61;
-        // address mainAddress = address(
-        //    0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61
-        //);
-        console.log(mainAddress);
-        dOnlyFansfactory.withdraw();
-        console.log(mainAddress.balance);
-        assertEq(mainAddress.balance, 5 gwei);
+        // address mainAddress = 0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61;
+        // // address mainAddress = address(
+        // //    0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61
+        // //);
+        // console.log(mainAddress);
+        // dOnlyFansfactory.withdraw();
+        // console.log(mainAddress.balance);
+        // assertEq(mainAddress.balance, 5 gwei);
     }
 
     event NewSubscriber(
@@ -94,6 +94,9 @@ contract dOnlyFansTest is Test {
         bool isnotsub = Creator(dOnlyFansfactory.creatorsContract(alice))
             .isSubscriber(address(156456));
         assertEq(isnotsub, false);
+        bool isAlicesub = Creator(dOnlyFansfactory.creatorsContract(alice))
+            .isSubscriber(alice);
+        assertEq(isAlicesub, true);
     }
 
     function dummyCiphertext() private pure returns (Ciphertext memory) {

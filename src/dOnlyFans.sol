@@ -289,10 +289,6 @@ contract Creator is PullPayment {
         if (msg.value < price) revert InsufficientFunds();
         if (msg.value % price != 0) revert InsufficientFunds(); // can only subscribe for full periods
         subscribers.push(subscriber);
-        uint256 toCreator = (msg.value * 95) / 100;
-        uint256 rest = msg.value - toCreator;
-        _asyncTransfer(CCaddress, toCreator);
-        _asyncTransfer(mainAddress, rest);
 
         if (price <= 0) {
             subscribersMap[subscriber] = Subscriber(
@@ -302,6 +298,10 @@ contract Creator is PullPayment {
                 block.timestamp + subscriptionPeriod * 1 days
             );
         } else {
+            uint256 toCreator = (msg.value * 95) / 100;
+            uint256 rest = msg.value - toCreator;
+            _asyncTransfer(CCaddress, toCreator);
+            _asyncTransfer(mainAddress, rest);
             // @dev currently doing monthly subscription, will make it configurable later
             subscribersMap[subscriber] = Subscriber(
                 subscriber,

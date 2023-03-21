@@ -287,8 +287,7 @@ contract Creator is PullPayment {
         // if (!creator.isCreator) revert CreatorDoesNotExist();
         address subscriber = tx.origin;
         if (msg.value < price) revert InsufficientFunds();
-        if (msg.value % price != 0) revert InsufficientFunds(); // can only subscribe for full periods
-        subscribers.push(subscriber);
+        // can only subscribe for full periods
 
         if (price <= 0) {
             subscribersMap[subscriber] = Subscriber(
@@ -297,7 +296,9 @@ contract Creator is PullPayment {
                 block.timestamp,
                 block.timestamp + subscriptionPeriod * 1 days
             );
+            subscribers.push(subscriber);
         } else {
+            if (msg.value % price != 0) revert InsufficientFunds();
             uint256 toCreator = (msg.value * 95) / 100;
             uint256 rest = msg.value - toCreator;
             _asyncTransfer(CCaddress, toCreator);
@@ -312,6 +313,7 @@ contract Creator is PullPayment {
                     subscriptionPeriod *
                     1 days
             );
+            subscribers.push(subscriber);
         }
     }
 

@@ -58,7 +58,6 @@ contract dOnlyFansTest is Test {
         vm.prank(alice, alice);
         aliceCreatorProfile.withdrawFunds();
         assertEq(alice.balance, 95 gwei);
-
         // address mainAddress = 0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61;
         // // address mainAddress = address(
         // //    0xabD580bE32f2ee9eB52FFC7790F41b3ec639EF61
@@ -75,13 +74,27 @@ contract dOnlyFansTest is Test {
         uint256 price
     );
 
-    function testNewSubscriverEvent() public {
+    function testNewSubscriverEvent() public {forge test --match-path test
         address charlie = address(4);
         vm.expectEmit(true, false, false, true);
         emit NewSubscriber(alice, charlie, 1);
         vm.deal(charlie, 1 ether);
         vm.prank(charlie, charlie);
         dOnlyFansfactory.subscribe{value: 1 wei}(alice);
+    }
+
+    function testFreeProfile() public {
+        vm.prank(address(445));
+        // create free profile
+        dOnlyFansfactory.createProfile(0, 45);
+        vm.deal(bob, 1 ether);
+        vm.prank(bob, bob);
+        // console.logBool(dOnlyFansfactory.users(bob).isInitialized);
+        dOnlyFansfactory.subscribe{value: 0 gwei}(address(445));
+        address[] memory subscribers = dOnlyFansfactory.getSubscribers(
+            address(445)
+        );
+        assertEq(subscribers[1], bob);
     }
 
     function testIsSubscriber() public {
